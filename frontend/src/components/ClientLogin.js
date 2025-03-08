@@ -45,8 +45,8 @@ const ClientLogin = (props) => {
                 password: formData.password,
             })
             if (response.status === 200) {
-                props.setToken(response.data.access_token)
-                navigate('/home');
+                props.setToken(response.data.access_token);
+                navigate('/dashboard');
             }
         } catch (error) {
             if (error.response) {
