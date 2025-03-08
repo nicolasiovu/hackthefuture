@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from config import app, db
-from models import Client, Order
+from models import Client, Order, upload_data_to_db
 from datetime import datetime, timedelta, timezone
 import json
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt, get_jwt_identity, unset_jwt_cookies
@@ -26,7 +26,7 @@ def register():
         return jsonify({"message": "Client already registered"}), 404
     elif not api_link:
         return jsonify({"message": "Your API link must be provided"})
-     
+
     new_client = Client(username=username, brand_name=brand_name, api_link=api_link)
     new_client.set_password(password1)
     try:
@@ -89,7 +89,7 @@ def refresh_expiring_jwts(response):
         return response
     except (RuntimeError, KeyError):
         return response
-    
+
 @app.route('/get_user', methods=['GET'])
 @jwt_required()
 def get_user():
@@ -102,7 +102,7 @@ def get_daily_volume():
     current_client = get_jwt_identity()
     id = current_client["id"]
     date = datetime.today().strftime('%Y-%m-%d')
-    orders = Order.query.filter_by(client_id=id, date=date).all()
+    orders = Order.query.filter_by(customer_id=id, order_date=date).all()
     return jsonify({"daily_volume": len(orders)}), 200
 
 # TODO: Add routes for checking if a return request is valid, and handling it appropriately
@@ -111,5 +111,6 @@ def get_daily_volume():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        upload_data_to_db()
 
     app.run(debug=True)
