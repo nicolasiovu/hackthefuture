@@ -72,6 +72,9 @@ const ClientRegister = () => {
                         break;
                     case 401:
                         newErrors.databaseAPI = error.response.data.message;
+                        break;
+                    default:
+                        newErrors.username = error.response.data.message;
                         break;           
                 }
                 setErrors(newErrors);

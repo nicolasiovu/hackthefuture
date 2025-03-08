@@ -11,9 +11,23 @@ const sampleOptions = [
 
 const HomePage = () => {
     const navigate = useNavigate();
+    const [selectedCompany, setSelectedCompany] = useState(null);
     const [options, setOptions] = useState(sampleOptions);
+    const [error, setError] = useState("");
 
-    const handleClick = () => {}
+    const handleSelectChange = (selectedOption) => {
+        setSelectedCompany(selectedOption);
+        setError(""); 
+    };
+
+    const handleClick = () => {
+        if (!selectedCompany) {
+            setError("Please make a selection.");
+            return;
+        }
+
+        navigate("/request");
+    }
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -49,6 +63,8 @@ const HomePage = () => {
                 classNamePrefix="react-select"
                 placeholder="Select a brand"
                 isSearchable
+                value={selectedCompany}
+                onChange={handleSelectChange}
                 theme={(theme) => ({
                     ...theme,
                     colors: {
@@ -91,6 +107,9 @@ const HomePage = () => {
                     }),
                 }}
                 />
+                {error && (
+                    <p className="text-red-400 mt-2">{error}</p>
+                )}
                 <button onClick={handleClick} className="mt-8 px-8 py-3 text-xl font-bold text-white bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg shadow-lg transform transition duration-300 hover:scale-105 hover:shadow-xl focus:outline-none">
                 Go
                 </button>
