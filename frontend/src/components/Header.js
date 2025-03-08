@@ -13,7 +13,7 @@ const Header = () => {
     }
 
     return (
-        <header className="bg-[#0d0d0d] sticky top-0 shadow-md p-4 flex justify-between items-center">
+        <header className="bg-[#0d0d0d] sticky top-0 shadow-md p-4 flex justify-between items-center z-50">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 text-transparent bg-clip-text">
                 ReVolve
             </h1>

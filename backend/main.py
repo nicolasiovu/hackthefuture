@@ -7,11 +7,11 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt, get_j
 
 @app.route('/register', methods=['POST'])
 def register():
-    brand_name = request.json['brand_name']
-    api_link = request.json['api_link']
-    username = request.json['username']
-    password1 = request.json['password1']
-    password2 = request.json['password2']
+    brand_name = request.json.get('brand_name')
+    api_link = request.json.get('api_link')
+    username = request.json.get('username')
+    password1 = request.json.get('password1')
+    password2 = request.json.get('password2')
 
     user = Client.query.filter_by(username=username).first()
     if user:
@@ -19,13 +19,13 @@ def register():
     elif len(username) < 4:
         return jsonify({"message": "Username must be greater than 3 characters"}), 404
     elif password1 != password2:
-        return jsonify({"message": "'Passwords don\'t match"}), 404
+        return jsonify({"message": "'Passwords don\'t match"}), 403
     elif len(password1) < 7:
-        return jsonify({"message": "'Password must be at least 7 characters"}), 404
+        return jsonify({"message": "'Password must be at least 7 characters"}), 403
     elif Client.query.filter_by(brand_name=brand_name).first():
-        return jsonify({"message": "Client already registered"}), 404
+        return jsonify({"message": "Client already registered"}), 402
     elif not api_link:
-        return jsonify({"message": "Your API link must be provided"})
+        return jsonify({"message": "Your API link must be provided"}), 401
      
     new_client = Client(username=username, brand_name=brand_name, api_link=api_link)
     new_client.set_password(password1)
@@ -41,12 +41,12 @@ def login():
     username = request.json['username']
     password = request.json['password']
     if not username or not password:
-        return jsonify({"msg": "Empty input"}), 401
+        return jsonify({"message": "Empty input"}), 401
     user = Client.query.filter_by(username=username).one_or_none()
     if user and user.check_password(password):
         access_token = create_access_token(identity={'id': user.id})
-        return jsonify({"access_token": access_token})
-    return jsonify({"msg": "Incorrect username or password."}), 401
+        return jsonify({"access_token": access_token}), 200
+    return jsonify({"message": "Incorrect username or password."}), 401
 
 @app.route('/logout', methods=['POST'])
 def logout():
