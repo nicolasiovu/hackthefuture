@@ -9,25 +9,26 @@ Original file is located at
 
 # Commented out IPython magic to ensure Python compatibility.
 # %cd /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture
-!ls
-!git pull
+# !ls
+# !git pull
+#
+# !git checkout gemini
+#
+# !git branch -a
+# !git status
+#
+# !cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/models.py /content/models.py
+# !cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/config.py /content/config.py
+#
+# !pip install flask_sqlalchemy
+# !pip install flask_cors
+# !pip install flask_jwt_extended
+# !pip install flask_login
 
-!git checkout gemini
-
-!git branch -a
-!git status
-
-!cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/models.py /content/models.py
-!cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/config.py /content/config.py
-
-!pip install flask_sqlalchemy
-!pip install flask_cors
-!pip install flask_jwt_extended
-!pip install flask_login
-
-from google.colab import userdata
+# from google.colab import userdata
 from google import genai
-API_KEY = userdata.get('GeminiAPI')
+# API_KEY = userdata.get('GeminiAPI')
+API_KEY = "AIzaSyC-XukHCg6_neZVFz6fQyejY6F1m-fSM30"
 client = genai.Client(api_key=API_KEY)
 
 import time
@@ -127,15 +128,15 @@ def process_return(order_id, customer_id, file_path1: str, file_path2:str=None,
   else:
     return jsonify({"decision": "Approved", "action": decision, "order_id": order_id, "return_date": datetime.today()}), 200
 
-!git status
-
-!git config user.email "tejovardhan.raju@gmail.com"
-!git config user.name "Tej79"
-
-!git add backend/HTF_Gemini_BackEnd.ipynb
-!git commit -m "Finished Gemini logic"
-
-!git pull
-
-!git push
+# !git status
+#
+# !git config user.email "tejovardhan.raju@gmail.com"
+# !git config user.name "Tej79"
+#
+# !git add backend/HTF_Gemini_BackEnd.ipynb
+# !git commit -m "Finished Gemini logic"
+#
+# !git pull
+#
+# !git push
 
