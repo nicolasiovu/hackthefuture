@@ -3,10 +3,10 @@ import { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 
 const sampleOptions = [
-    { value: 'company1', label: 'Company 1' },
-    { value: 'company2', label: 'Company 2' },
-    { value: 'company3', label: 'Company 3' },
-    { value: 'company4', label: 'Company 4' }
+    { value: 'company1', label: 'NT Enterprises' },
+    { value: 'company2', label: 'Mark\'s Fishing Shop' },
+    { value: 'company3', label: 'Apple' },
+    { value: 'company4', label: 'Amazon' }
   ];
 
 const HomePage = () => {

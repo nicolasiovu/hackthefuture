@@ -11,16 +11,17 @@ Original file is located at
 from config import db
 from google import genai
 # API_KEY = userdata.get('GeminiAPI')
-API_KEY = "AIzaSyC-XukHCg6_neZVFz6fQyejY6F1m-fSM30"
-client = genai.Client(api_key=API_KEY)
 
 import time
 from flask import jsonify
 from google.genai import types
+from datetime import datetime, timedelta
+
+API_KEY = "AIzaSyC-XukHCg6_neZVFz6fQyejY6F1m-fSM30"
+client = genai.Client(api_key=API_KEY)
 
 def _rank_condition_vid(file_path1: str, file_path2:str=None, file_path3:str=None, file_path4:str=None):
   file = client.files.upload(file=file_path1)
-  print("Please wait as we process your video")
   while file.state.name == "PROCESSING":
     print(".", end="")
     time.sleep(5)
@@ -159,6 +160,6 @@ def _process_return_helper(order_id, customer_id, file_path1: str, file_path2:st
 
   return json
 
-from datetime import datetime, timedelta
+
 
 

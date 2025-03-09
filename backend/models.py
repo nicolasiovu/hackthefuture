@@ -69,13 +69,13 @@ class Order(db.Model):
 class Request(db.Model):
     request_id = db.Column(db.String, primary_key=True)
     product_name = db.Column(db.String, nullable=False)
+    order_id = db.Column(db.String(100), db.ForeignKey('order.order_id'), nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey('client.id'),
                             nullable=False)
     product_condition = db.Column(db.String, nullable=False)
     product_decision = db.Column(db.String, nullable=True)
     request_date = db.Column(db.String, nullable=False)
     request_accepted = db.Column(db.Integer, nullable=False)
-    request_pickup_date = db.Column(db.String, nullable=False)
     return_reason = db.Column(db.String, nullable=False)
 
     def to_json(self):
@@ -87,7 +87,6 @@ class Request(db.Model):
             'product_decision': self.product_decision,
             'request_date': self.request_date,
             'request_accepted': self.request_accepted,
-            'request_pickup_date': self.request_pickup_date,
             'return_reason': self.return_reason
         }
 

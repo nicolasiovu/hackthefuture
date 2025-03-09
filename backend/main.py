@@ -5,6 +5,18 @@ from datetime import datetime, timedelta, timezone
 import json
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt, get_jwt_identity, unset_jwt_cookies
 from collections import Counter
+from google import genai
+import time
+from google.genai import types
+import os
+
+API_KEY = "AIzaSyC-XukHCg6_neZVFz6fQyejY6F1m-fSM30"
+client = genai.Client(api_key=API_KEY)
+
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -108,23 +120,15 @@ def get_daily_volume():
 
 
 def calculate_percentages(lst):
+    """Calculate the percentage of occurrences of each item in a list."""
     if not lst:
         return {}
 
-    counts = {}
-    for item in lst:
-        counts[item] = counts.get(item, 0) + 1
-
+    counts = Counter(lst)
     total = len(lst)
-    result = {}
-    for key, value in counts.items():
-        percent = round((value / total) * 100)
-        result[key] = percent
+    return {str(key): round((value / total) * 100) for key, value in counts.items()}
 
-    return result
-
-
-def top_4_occurrences(input_list: list) -> dict:
+def top_4_occurrences(input_list: list):
     # Count the occurrences of each string in the list
     counter = Counter(input_list)
 
@@ -132,52 +136,186 @@ def top_4_occurrences(input_list: list) -> dict:
     top_4 = counter.most_common(4)
 
     # Format the output as requested
-    formatted_output = {
-        "topProducts": [
+    formatted_output = [
             {"id": i + 1, "name": name, "occurrences": count}
             for i, (name, count) in enumerate(top_4)
         ]
-    }
 
     return formatted_output
 
 @app.route('/dashboard_stats', methods=['GET'])
 @jwt_required()
 def dashboard_stats():
-    date = datetime.today().strftime('%Y-%m-%d')
-    requests = len(Request.query.filter_by(request_date=date).all())
-    returns = len(Request.query.filter_by(return_accepted=1, request_date=date).all())
+    """Fetch dashboard statistics and return JSON response."""
 
-    product_decision = Request.query.with_entities(Request.return_reason).scalars().all()
+    try:
+        # Get the current authenticated user
+        current_user = get_jwt_identity()
+        if not current_user:
+            return jsonify({"msg": "Unauthorized"}), 401
 
-    product_name = Request.query.with_entities(Request.product_name).scalars().all()
-    top_4_returns = top_4_occurrences(product_name)
+        # Get today's date
+        date = datetime.today().strftime('%Y-%m-%d')
 
-    top_1 = len(Order.query.filter_by(product_name=top_4_returns[0]["name"]).all())
-    top_2 = len(Order.query.filter_by(product_name=top_4_returns[1]["name"]).all())
-    top_3 = len(Order.query.filter_by(product_name=top_4_returns[2]["name"]).all())
-    top_4 = len(Order.query.filter_by(product_name=top_4_returns[3]["name"]).all())
+        # Get today's requests & accepted returns
+        requests_today = Request.query.filter_by(request_date=date).count() or 0
+        returns_accepted_today = Request.query.filter_by(return_accepted=1, request_date=date).count() or 0
 
-    top_products_returned = [{"id": 1, "name": top_4_returns[0]["name"], "percentage": round((top_4_returns[0]["occurrences"]/top_1)*100), "Sales": top_1},
-                             {"id": 2, "name": top_4_returns[1]["name"], "percentage": round((top_4_returns[1]["occurrences"]/top_2)*100), "Sales": top_2},
-                             {"id": 3, "name": top_4_returns[2]["name"], "percentage": round((top_4_returns[2]["occurrences"]/top_3)*100), "Sales": top_3},
-                             {"id": 4, "name": top_4_returns[3]["name"], "percentage": round((top_4_returns[3]["occurrences"]/top_4)*100), "Sales": top_4}
-                             ]
+        # Get return reasons and product names
+        return_reasons = [str(reason) for reason in Request.query.with_entities(Request.return_reason).scalars().all() if reason]
+        product_names = [str(name) for name in Request.query.with_entities(Request.product_name).scalars().all() if name]
 
-    return jsonify({"Requests_today": requests,                                     # int
-                    "Returns_accepted_today": returns,                              # int
-                    "Reasons_for_returns": calculate_percentages(product_decision), #dict(string, int)
-                    "Top_products_returned": top_products_returned}), 200           #list(dict)
+        # Get top 4 most returned products
+        top_4_returns = top_4_occurrences(product_names)
+
+        # Fetch sales data for top products
+        top_products_returned = []
+        for product in top_4_returns:
+            product_name = product["name"]
+            sales_count = Order.query.filter_by(product_name=product_name).count() or 0
+
+            # Avoid division by zero
+            percentage = round((product["occurrences"] / sales_count) * 100) if sales_count > 0 else 0
+
+            top_products_returned.append({
+                "id": product["id"],
+                "name": product_name,
+                "percentage": percentage,
+                "sales": sales_count
+            })
+
+        # Construct the JSON response
+        response = {
+            "requests_today": requests_today,
+            "returns_accepted_today": returns_accepted_today,
+            "reasons_for_returns": calculate_percentages(return_reasons) or {},
+            "top_products_returned": top_products_returned
+        }
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+def _rank_condition_vid(file_paths):
+  system_prompt="""
+  You are an expert product condition evaluator whose job is to evaluate a
+  returned item's condition and categorize it into one of the following: "Like
+  New", "Slightly Used", "Used", "Damaged", "Severely Damaged". Respond with the
+  category only and nothing else.
+  """
+
+  MODEL_ID = "gemini-2.0-flash"
+  response = client.models.generate_content(
+    model=f"models/{MODEL_ID}",
+    contents=["Please evaluate the condition of this returned product and" +
+              "categorize it into one of the 5 specified categories.", file_paths[0]],
+    config=types.GenerateContentConfig(system_instruction=system_prompt,),
+  )
+
+  condition = response.text
+
+  return condition
 
 
+@app.route('/ask_gemini', methods=['POST'])
+def ask_gemini():
+  if "files" not in request.files:
+    return jsonify({"error": "No file part"}), 400
+  
+  order_id = request.json['order_id']
+  customer_id = request.json['client_id']
+  reason = request.json['reason']
+
+  uploaded_files = request.files.getlist("files")  # Get multiple files
+  saved_file_paths = []
+
+  for file in uploaded_files:
+    if file.filename == "":
+      return jsonify({"error": "No selected file"}), 400
+        
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+    file.save(file_path)
+    saved_file_paths.append(file_path)
+
+  condition = _rank_condition_vid(saved_file_paths)
+  price = Order.query.filter_by(order_id=order_id).first().product_price
+
+  return_order = None
+  json = None
+
+  date = datetime.today().strftime('%Y-%m-%d')
+
+  if condition == "Like New" or condition == "Slightly Used":
+
+    if reason == "Wrong Size":
+      return_order = Request(order_id=order_id, customer_id=customer_id, product_condition=condition, request_date=date,
+                             requst_accepted=1, return_reason=reason)
+
+      json = jsonify({"Status": "Approved", "Refund": price}), 200
+
+    elif reason in ["Wrong Item", "Item not as described",
+                    "Not Satisfied", "Dont Want Item Anymore"]:
+
+      return_order = Request(order_id=order_id, customer_id=customer_id, product_condition=condition, request_date=date,
+                             requst_accepted=1, return_reason=reason)
+      json = jsonify({"Status": "Approved", "Refund": price}), 200
+
+    elif reason in ["Defective or Damaged", "Missing Parts or Accessories"]:
+
+      return_order = Request(order_id=order_id, customer_id=customer_id, product_condition=condition, request_date=date,
+                             requst_accepted=1, return_reason=reason)
+      
+      json = jsonify({"Status": "Approved", "Refund": price}), 200
+
+  elif condition == "Used":
 
 
-# TODO: Add routes for checking if a return request is valid, and handling it appropriately
+    if reason == "Wrong Size":
+
+      return_order = Request(order_id=order_id, customer_id=customer_id, product_condition=condition, request_date=date,
+                             requst_accepted=1, return_reason=reason)
+
+      json = jsonify({"Status": "Approved", "Refund": price*0.7}), 200
+
+    elif reason in ["Wrong Item", "Item not as described",
+                    "Not Satisfied", "Dont Want Item Anymore"]:
+
+      return_order = Request(order_id=order_id, customer_id=customer_id, product_condition=condition, request_date=date,
+                             requst_accepted=1, return_reason=reason)
+
+      json = jsonify({"Status": "Approved", "Refund": price*0.8}), 200
+
+    elif reason in ["Defective or Damaged", "Missing Parts or Accessories"]:
+
+      return_order = Request(order_id=order_id, customer_id=customer_id, product_condition=condition, request_date=date,
+                             requst_accepted=0, return_reason=reason)
+
+      json = jsonify({"Status": "Denied", "Reason": "Damaged by Customer"}), 200
+
+  elif condition == "Damaged" or condition == "Severely Damaged":
+
+    if reason == "Defective or Damaged":
+      return_order = Request(order_id=order_id, customer_id=customer_id, product_condition=condition, request_date=date,
+                             requst_accepted=1, return_reason=reason)
+
+      json = jsonify({"Status": "Approved", "Refund": price}), 200
+    else:
+      return_order = Request(order_id=order_id, customer_id=customer_id, product_condition=condition, request_date=date,
+                             requst_accepted=0, return_reason=reason)
+
+      json = jsonify({"Status": "Denied", "Reason": "Damaged by Customer"}), 200
+
+  db.session.add(return_order)
+  db.session.commit()
+
+  return json
 
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-        upload_data_to_db()
+        # upload_data_to_db()
 
     app.run(debug=True)

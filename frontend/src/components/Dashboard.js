@@ -6,10 +6,10 @@ const Dashboard = () => {
         requestsToday: 120,
         returnsAccepted: 85,
         topProducts: [
-            { id: 1, name: "Item A", percentage: "40%", sales: "320" },
-            { id: 2, name: "Item B", percentage: "25%", sales: "200" },
-            { id: 3, name: "Item C", percentage: "20%", sales: "150" },
-            { id: 4, name: "Item D", percentage: "15%", sales: "100" },
+            { id: 1, name: "B-Series Laptop", percentage: "40%", sales: "320" },
+            { id: 2, name: "Cybermobile Type S", percentage: "25%", sales: "200" },
+            { id: 3, name: "T-Phone Adapter Port", percentage: "20%", sales: "150" },
+            { id: 4, name: "Headphones Classic", percentage: "15%", sales: "100" },
         ],
         totalSaved: "$5,600",
         emissionsReduced: "12 kg of CO₂",
@@ -17,11 +17,10 @@ const Dashboard = () => {
     });
 
     const returnReasons = [
-        { name: "Wrong Size or Fit", value: 20 },
-        { name: "Defective", value: 20 },
-        { name: "Not as Described", value: 20 },
-        { name: "Lightly Used", value: 20 },
-        { name: "Don’t Want Anymore", value: 20 },
+        { name: "Wrong Size or Fit", value: 10 },
+        { name: "Defective", value: 50 },
+        { name: "Not as Described", value: 15 },
+        { name: "Don’t Want Anymore", value: 25 },
     ];
 
     const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
