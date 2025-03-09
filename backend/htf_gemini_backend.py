@@ -7,24 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/119ySib3zuoukjaYATIiw4LycXnel6p-S
 """
 
-# Commented out IPython magic to ensure Python compatibility.
-# %cd /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture
-# !ls
-# !git pull
-#
-# !git checkout gemini
-#
-# !git branch -a
-# !git status
-#
-# !cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/models.py /content/models.py
-# !cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/config.py /content/config.py
-#
-# !pip install flask_sqlalchemy
-# !pip install flask_cors
-# !pip install flask_jwt_extended
-# !pip install flask_login
-
 # from google.colab import userdata
 from config import db
 from google import genai
@@ -69,7 +51,7 @@ def _rank_condition_vid(file_path1: str, file_path2:str=None, file_path3:str=Non
 _rank_condition_vid("/content/HTF_gemini_test_image.jpg")
 
 from flask import jsonify
-from models import Client, Order
+from models import Client, Order, Request
 def _process_return_helper(order_id, customer_id, file_path1: str, file_path2:str=None,
                            file_path3:str=None, file_path4:str=None):
   condition = _rank_condition_vid(file_path1, file_path2, file_path3, file_path4)
