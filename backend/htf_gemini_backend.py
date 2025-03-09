@@ -9,25 +9,27 @@ Original file is located at
 
 # Commented out IPython magic to ensure Python compatibility.
 # %cd /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture
-!ls
-!git pull
+# !ls
+# !git pull
+#
+# !git checkout gemini
+#
+# !git branch -a
+# !git status
+#
+# !cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/models.py /content/models.py
+# !cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/config.py /content/config.py
+#
+# !pip install flask_sqlalchemy
+# !pip install flask_cors
+# !pip install flask_jwt_extended
+# !pip install flask_login
 
-!git checkout gemini
-
-!git branch -a
-!git status
-
-!cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/models.py /content/models.py
-!cp /content/drive/MyDrive/Colab_Notebooks/HTF_Project/hackthefuture/backend/config.py /content/config.py
-
-!pip install flask_sqlalchemy
-!pip install flask_cors
-!pip install flask_jwt_extended
-!pip install flask_login
-
-from google.colab import userdata
+# from google.colab import userdata
+from config import db
 from google import genai
-API_KEY = userdata.get('GeminiAPI')
+# API_KEY = userdata.get('GeminiAPI')
+API_KEY = "AIzaSyC-XukHCg6_neZVFz6fQyejY6F1m-fSM30"
 client = genai.Client(api_key=API_KEY)
 
 import time
@@ -54,88 +56,127 @@ def _rank_condition_vid(file_path1: str, file_path2:str=None, file_path3:str=Non
 
   MODEL_ID = "gemini-2.0-flash"
   response = client.models.generate_content(
-      model=f"models/{MODEL_ID}",
-      contents=["Please evaluate the condition of this returned product and" +
-      "categorize it into one of the 5 specified categories.", file],
-      config=types.GenerateContentConfig(system_instruction=system_prompt,),
+    model=f"models/{MODEL_ID}",
+    contents=["Please evaluate the condition of this returned product and" +
+              "categorize it into one of the 5 specified categories.", file],
+    config=types.GenerateContentConfig(system_instruction=system_prompt,),
   )
 
   condition = response.text
 
   return {"condition": condition}
 
-rank_condition_vid("/content/HTF_gemini_test_image.jpg")
+_rank_condition_vid("/content/HTF_gemini_test_image.jpg")
 
 from flask import jsonify
 from models import Client, Order
-def _process_return_helper(order_id, client_id, file_path1: str, file_path2:str=None,
-                   file_path3:str=None, file_path4:str=None):
-  condition = rank_condition_vid(file_path1, file_path2, file_path3, file_path4)
-  reason = Order.query.filter_by(id=order_id).first().reason
+def _process_return_helper(order_id, customer_id, file_path1: str, file_path2:str=None,
+                           file_path3:str=None, file_path4:str=None):
+  condition = _rank_condition_vid(file_path1, file_path2, file_path3, file_path4)
+  reason = Order.query.filter_by(order_id=order_id).first().reason
 
-  all_orders = Order.query.filter_by(client_id=client_id).all().count()
-  num_returns = Order.query.filter_by(client_id=client_id, returned="Yes").all().count()
+  all_orders = Order.query.filter_by(customer_id=customer_id).all().count()
+  num_returns = Order.query.filter_by(customer_id=customer_id, returned="1").all().count()
   return_rate = num_returns/all_orders
 
-  s = ""
+  price = Order.query.filter_by(order_id=order_id).first().product_price
 
-  if return_rate > 0.7:
-    s="""Return Denied: You have returned too many items recently. To prevent
-    excessive returns, we will temporarily deny return requests.
-    """
-    return s
-  elif return_rate > 0.5:
-    s="""Return Denied: You have returned a lot of items recently. If too many
-    items from your orders are being returned, we may deny any further returns.
-    """
-    return s
+  return_order = None
+  json = None
 
   # need to check if return is within return period outlined by client policy
 
+  return_date = Order.query.filter_by(order_id=order_id).first().order_date
+
+  if (return_date + timedelta(90)) < datetime.today():
+    return_order = Request(order_id, customer_id, condition, datetime.today(),
+                           "Denied", datetime.today() + timedelta(7), reason)
+    json = jsonify({"Status": "Denied", "Reason": "Return Period has passed"})
+
+    db.session.add(return_order)
+    db.session.commit()
+    return json
+
+  if return_rate > 0.7:
+    # s="""Return Denied: You have returned too many items recently. To prevent
+    # excessive returns, we will temporarily deny return requests.
+    # """
+    return_order = Request(order_id, customer_id, condition, datetime.today(),
+                           "Denied", datetime.today() + timedelta(7), reason)
+    json = jsonify({"Status": "Denied", "Reason": "Return Rate"})
+
+    db.session.add(return_order)
+    db.session.commit()
+    return json
+
+
   if condition == "Like New" or condition == "Slightly Used":
+
+
     if reason == "Wrong Size":
-      return "Exchange"
-    elif reason in ["Wrong Item", "Item not as described", "Wrong Color",
+      return_order = Request(order_id, customer_id, condition, "Exchange", datetime.today(),
+                             "Approved", datetime.today() + timedelta(7), reason)
+
+      json = jsonify({"Status": "Approved", "Refund": price}), 200
+
+    elif reason in ["Wrong Item", "Item not as described",
                     "Not Satisfied", "Dont Want Item Anymore"]:
-      return "Restock"
-    # need to calcualte
+
+      return_order = Request(order_id, customer_id, condition, "Restock", datetime.today(),
+                             "Approved", datetime.today() + timedelta(7), reason)
+      json = jsonify({"Status": "Approved", "Refund": price}), 200
+
+    # need to calculate
     elif reason in ["Defective or Damaged", "Missing Parts or Accessories"]:
-      return "Refurbish"
-    else:
-      return "Refurbish"
+
+      return_order = Request(order_id, customer_id, condition, "Refurbish", datetime.today(),
+                             "Approved", datetime.today() + timedelta(7), reason)
+
   elif condition == "Used":
+
+
     if reason == "Wrong Size":
-      return "Exchange"
-    elif reason in ["Wrong Item", "Item not as described", "Wrong Color",
+
+      return_order = Request(order_id, customer_id, condition, "Exchange", datetime.today(),
+                             "Approved", datetime.today() + timedelta(7), reason)
+
+      json = jsonify({"Status": "Approved", "Refund": price*0.7}), 200
+
+    elif reason in ["Wrong Item", "Item not as described",
                     "Not Satisfied", "Dont Want Item Anymore"]:
-      return "Refurbish"
-    else:
-      return "Refurbish"
+
+      return_order = Request(order_id, customer_id, condition, "Refurbish", datetime.today(),
+                             "Approved", datetime.today() + timedelta(7), reason)
+
+      json = jsonify({"Status": "Approved", "Refund": price*0.8}), 200
+
+    elif reason in ["Defective or Damaged", "Missing Parts or Accessories"]:
+
+      return_order = Request(order_id, customer_id, condition, datetime.today(),
+                             "Denied", datetime.today() + timedelta(7), reason)
+
+      json = jsonify({"Status": "Denied", "Reason": "Damaged by Customer"}), 200
+
   elif condition == "Damaged" or condition == "Severely Damaged":
+
     # need to check if product was not damaged by user
+
     if reason == "Defective or Damaged":
-      return "Recycle"
+      return_order = Request(order_id, customer_id, condition, "Recycle", datetime.today(),
+                             "Approved", datetime.today() + timedelta(7), reason)
+
+      json = jsonify({"Status": "Approved", "Refund": price}), 200
     else:
-      return "Denied"
+      return_order = Request(order_id, customer_id, condition, datetime.today(),
+                             "Denied", datetime.today() + timedelta(7), reason)
 
-from datetime import datetime
-def process_return(order_id, customer_id, file_path1: str, file_path2:str=None,
-                   file_path3:str=None, file_path4:str=None):
-  decision = _process_return_helper(order_id, customer_id, file_path1, file_path2, file_path3, file_path4)
-  if decision == "Denied":
-    return jsonify({"decision": "Denied"}), 404
-  else:
-    return jsonify({"decision": "Approved", "action": decision, "order_id": order_id, "return_date": datetime.today()}), 200
+      json = jsonify({"Status": "Denied", "Reason": "Damaged by Customer"}), 200
 
-!git status
+  db.session.add(return_order)
+  db.session.commit()
 
-!git config user.email "tejovardhan.raju@gmail.com"
-!git config user.name "Tej79"
+  return json
 
-!git add backend/HTF_Gemini_BackEnd.ipynb
-!git commit -m "Finished Gemini logic"
+from datetime import datetime, timedelta
 
-!git pull
-
-!git push
 
