@@ -124,7 +124,7 @@ def calculate_percentages(lst):
     return result
 
 
-def top_4_occurrences(input_list: list) -> dict:
+def top_4_occurrences(input_list: list):
     # Count the occurrences of each string in the list
     counter = Counter(input_list)
 
@@ -132,12 +132,10 @@ def top_4_occurrences(input_list: list) -> dict:
     top_4 = counter.most_common(4)
 
     # Format the output as requested
-    formatted_output = {
-        "topProducts": [
+    formatted_output = [
             {"id": i + 1, "name": name, "occurrences": count}
             for i, (name, count) in enumerate(top_4)
         ]
-    }
 
     return formatted_output
 
